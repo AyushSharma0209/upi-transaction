@@ -6,6 +6,7 @@ import com.upi.transaction.service.SmsParserService;
 import com.upi.transaction.service.TelegramService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -24,6 +25,26 @@ public class SmsController {
         this.smsParserService = smsParserService;
         this.balanceService = balanceService;
         this.telegramService = telegramService;
+    }
+
+    @PostMapping("/sync")
+    public ResponseEntity<?> setBalance(@RequestBody JsonNode node) throws Exception {
+
+        BigDecimal newBalance;
+        String text = node.path("message").path("text").asText();
+        try{
+            BigDecimal amount = new BigDecimal(text);
+            newBalance = balanceService.syncBalance(amount);
+            telegramService.notifyBalance(newBalance);
+            return ResponseEntity.ok(Map.of(
+                    "balance",newBalance
+            ));
+        }
+        catch (Exception e){
+                throw new Exception(e);
+        }
+
+
     }
 
     @PostMapping("/sms")

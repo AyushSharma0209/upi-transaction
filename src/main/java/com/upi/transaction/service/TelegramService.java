@@ -33,6 +33,11 @@ public class TelegramService {
                 .subscribe();
     }
 
+    public void notifyBalance(BigDecimal balance){
+        String message = String.format("💰 Balance Updated!\n\nUpdated Balance: *₹%s*", balance);
+        sendMessage(message);
+    }
+
     public void notifyTransaction(String type, BigDecimal amount, String upiId, BigDecimal balance) {
         String emoji = type.equals("SENT") ? "🔴" : "🟢";
         String direction = type.equals("SENT") ? "Paid to" : "Received from";
