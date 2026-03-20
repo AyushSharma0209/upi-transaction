@@ -35,6 +35,10 @@ public class AppConfig {
     public static class Telegram {
         private String botToken;
         private String chatId;
+        private String trackToken;
+        private String trackId;
+        public String getTrackToken(){return this.trackToken;}
+        public String getTrackId(){return this.trackId;}
         public String getBotToken() { return botToken; }
         public void setBotToken(String botToken) { this.botToken = botToken; }
         public String getChatId() { return chatId; }

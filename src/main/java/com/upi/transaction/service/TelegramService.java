@@ -14,10 +14,14 @@ public class TelegramService {
     private final String botToken;
     private final String chatId;
     private final WebClient webClient;
+    private final String trackToken;
+    private final String trackId;
 
     public TelegramService(AppConfig appConfig) {
         this.botToken = appConfig.getTelegram().getBotToken();
         this.chatId = appConfig.getTelegram().getChatId();
+        this.trackId = appConfig.getTelegram().getTrackId();
+        this.trackToken = appConfig.getTelegram().getTrackToken();
         this.webClient = WebClient.builder()
                 .baseUrl("https://api.telegram.org")
                 .build();
@@ -27,6 +31,15 @@ public class TelegramService {
         webClient.get()
                 .uri("/bot{token}/sendMessage?chat_id={chatId}&text={text}&parse_mode=Markdown",
                         botToken, chatId, text)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnError(e -> System.err.println("Telegram send failed: " + e.getMessage()))
+                .subscribe();
+    }
+    public void notifyTally(String text) {
+        webClient.get()
+                .uri("/bot{token}/sendMessage?chat_id={chatId}&text={text}&parse_mode=Markdown",
+                        trackToken, trackId, text)
                 .retrieve()
                 .bodyToMono(String.class)
                 .doOnError(e -> System.err.println("Telegram send failed: " + e.getMessage()))
