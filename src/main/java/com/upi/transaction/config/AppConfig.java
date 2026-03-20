@@ -35,10 +35,13 @@ public class AppConfig {
     public static class Telegram {
         private String botToken;
         private String chatId;
-        private String trackToken;
-        private String trackId;
-        public String getTrackToken(){return this.trackToken;}
-        public String getTrackId(){return this.trackId;}
+        private String trackerToken;
+        private String trackerId;
+        public String getTrackToken(){return this.trackerToken;}
+        public String getTrackId(){return this.trackerId;}
+        public void setTrackerToken(String token){this.trackerToken=token;}
+        public void setTrackerId(String Id){this.trackerId=Id;}
+
         public String getBotToken() { return botToken; }
         public void setBotToken(String botToken) { this.botToken = botToken; }
         public String getChatId() { return chatId; }

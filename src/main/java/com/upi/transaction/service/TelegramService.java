@@ -37,6 +37,8 @@ public class TelegramService {
                 .subscribe();
     }
     public void notifyTally(String text) {
+        System.out.println("token"+trackToken);
+        System.out.println("token"+trackId);
         webClient.get()
                 .uri("/bot{token}/sendMessage?chat_id={chatId}&text={text}&parse_mode=Markdown",
                         trackToken, trackId, text)
