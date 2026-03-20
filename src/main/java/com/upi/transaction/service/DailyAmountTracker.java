@@ -33,7 +33,7 @@ public class DailyAmountTracker {
             return this.currentAmount;
     }
 
-    @Scheduled(cron = "0 38 16 * * *", zone = "Asia/Kolkata")
+    @Scheduled(cron = "0 45 16 * * *", zone = "Asia/Kolkata")
     public void sendDailySummary() {
         String emoji = currentAmount.compareTo(BigDecimal.ZERO) >= 0 ? "🟢" : "🔴";
         String sign = currentAmount.compareTo(BigDecimal.ZERO) >= 0 ? "+" : "";
