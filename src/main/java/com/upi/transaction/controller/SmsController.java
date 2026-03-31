@@ -30,6 +30,11 @@ public class SmsController {
         this.tracker = tracker;
     }
 
+    @GetMapping("/test")
+    public String test(){
+        return "Hi";
+    }
+
     @PostMapping("/sync")
     public ResponseEntity<?> setBalance(@RequestBody JsonNode node) throws Exception {
 
