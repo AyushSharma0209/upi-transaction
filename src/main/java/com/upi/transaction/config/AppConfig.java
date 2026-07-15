@@ -2,6 +2,7 @@
 
 package com.upi.transaction.config;
 
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -10,7 +11,7 @@ import java.math.BigDecimal;
 @Configuration
 @ConfigurationProperties(prefix = "app")
 public class AppConfig {
-
+    private Gemini gemini = new Gemini();
     private Balance balance = new Balance();
     private Telegram telegram = new Telegram();
     private Bank bank = new Bank();
@@ -22,10 +23,18 @@ public class AppConfig {
     public Telegram getTelegram() { return telegram; }
     public void setTelegram(Telegram telegram) { this.telegram = telegram; }
     public Bank getBank() { return bank; }
+    public Gemini getGemini(){return gemini;}
     public void setBank(Bank bank) { this.bank = bank; }
     public Sms getSms() { return sms; }
     public void setSms(Sms sms) { this.sms = sms; }
 
+
+
+    public static class Gemini {
+        private String apiKey;
+        public String getApiKey() { return apiKey; }
+        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+    }
     public static class Balance {
         private BigDecimal initial = BigDecimal.ZERO;
         public BigDecimal getInitial() { return initial; }

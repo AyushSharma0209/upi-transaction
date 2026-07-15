@@ -42,6 +42,10 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
 		<!-- JPA (to persist balance) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

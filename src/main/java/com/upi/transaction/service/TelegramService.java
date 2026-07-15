@@ -3,6 +3,7 @@
 package com.upi.transaction.service;
 
 import com.upi.transaction.config.AppConfig;
+import com.upi.transaction.dto.ParsedTransaction;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -53,13 +54,17 @@ public class TelegramService {
         sendMessage(message);
     }
 
-    public void notifyTransaction(String type, BigDecimal amount, String upiId, BigDecimal balance) {
-        String emoji = type.equals("SENT") ? "🔴" : "🟢";
-        String direction = type.equals("SENT") ? "Paid to" : "Received from";
+    public void notifyTransaction(ParsedTransaction parsed, BigDecimal balance) {
+        String emoji = parsed.direction() == ParsedTransaction.Direction.DEBIT ? "🔴" : "🟢";
+        String action = parsed.direction() == ParsedTransaction.Direction.DEBIT ? "Paid to" : "Received from";
+        String method = parsed.paymentMethod().name();
+        String counterparty = parsed.counterparty() != null ? parsed.counterparty() : "Unknown";
 
         String message = String.format(
-                "%s *%s* ₹%s\n%s: `%s`\n\n💰 Balance: *₹%s*",
-                emoji, direction, amount, direction.split(" ")[0], upiId, balance
+                "%s *%s* ₹%s\n%s: `%s`\nMethod: %s\n\n💰 Balance: *₹%s*",
+                emoji, action, parsed.amount(),
+                action.split(" ")[0], counterparty,
+                method, balance
         );
 
         sendMessage(message);

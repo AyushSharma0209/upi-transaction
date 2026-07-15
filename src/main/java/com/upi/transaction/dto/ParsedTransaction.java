@@ -1,19 +1,21 @@
-
 package com.upi.transaction.dto;
 
 import java.math.BigDecimal;
 
 public record ParsedTransaction(
-        TransactionType type,
+        Direction direction,
+        PaymentMethod paymentMethod,
         BigDecimal amount,
-        String upiId,
+        String counterparty,
         String date,
-        String upiRef,
-        BigDecimal bankBalance
+        String referenceId,
+        BigDecimal balanceAfter
 ) {
-    public enum TransactionType {
-        UPI_SENT,
-        UPI_RECEIVED,
-        CASH_DEPOSIT
+    public enum Direction {
+        DEBIT, CREDIT
+    }
+
+    public enum PaymentMethod {
+        UPI, CARD, NET_BANKING, WALLET, NEFT, IMPS, NACH, OTHER
     }
 }

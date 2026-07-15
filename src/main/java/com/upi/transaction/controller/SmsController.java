@@ -7,7 +7,7 @@ import com.upi.transaction.service.SmsParserService;
 import com.upi.transaction.service.TelegramService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -23,7 +23,7 @@ public class SmsController {
 
     public SmsController(SmsParserService smsParserService,
                          BalanceService balanceService,
-                         TelegramService telegramService,DailyAmountTracker tracker) {
+                         TelegramService telegramService, DailyAmountTracker tracker) {
         this.smsParserService = smsParserService;
         this.balanceService = balanceService;
         this.telegramService = telegramService;
@@ -31,29 +31,27 @@ public class SmsController {
     }
 
     @GetMapping("/test")
-    public String test(){
+    public String test() {
         return "Hi";
     }
 
     @PostMapping("/sync")
     public ResponseEntity<?> setBalance(@RequestBody JsonNode node) throws Exception {
-
         BigDecimal newBalance;
         BigDecimal current;
         BigDecimal previousAmount = balanceService.getCurrentBalance();
         String text = node.path("message").path("text").asText();
-        try{
+        try {
             BigDecimal amount = new BigDecimal(text);
             newBalance = balanceService.syncBalance(amount);
-            current = tracker.alter(previousAmount,amount);
+            current = tracker.alter(previousAmount, amount);
             telegramService.notifyBalance(newBalance);
             return ResponseEntity.ok(Map.of(
-                    "balance",newBalance,
-                        "tracker",current
+                    "balance", newBalance,
+                    "tracker", current
             ));
-        }
-        catch (Exception e){
-                throw new Exception(e);
+        } catch (Exception e) {
+            throw new Exception(e);
         }
     }
 
@@ -74,34 +72,34 @@ public class SmsController {
 
         BigDecimal newBalance;
         BigDecimal current;
-        switch (parsed.type()) {
-            case UPI_SENT -> {
-                newBalance = balanceService.deduct(parsed.amount());
-                current = tracker.deduct(parsed.amount());
-                telegramService.notifyTransaction("SENT", parsed.amount(), parsed.upiId(), newBalance);
-            }
-            case UPI_RECEIVED -> {
-                newBalance = balanceService.add(parsed.amount());
-                current = tracker.add(parsed.amount());
-                telegramService.notifyTransaction("RECEIVED", parsed.amount(), parsed.upiId(), newBalance);
-            }
-            case CASH_DEPOSIT -> {
-                newBalance = balanceService.syncBalance(parsed.bankBalance());
-                current = tracker.add(parsed.amount());
-                System.out.println("Balance synced to: ₹" + newBalance);
-            }
-            default -> {
-                current = tracker.getCurrentAmount();
-                newBalance = balanceService.getCurrentBalance();
+
+        // If SMS included balance, sync directly
+        if (parsed.balanceAfter() != null) {
+            newBalance = balanceService.syncBalance(parsed.balanceAfter());
+        } else {
+            switch (parsed.direction()) {
+                case DEBIT -> newBalance = balanceService.deduct(parsed.amount());
+                case CREDIT -> newBalance = balanceService.add(parsed.amount());
+                default -> newBalance = balanceService.getCurrentBalance();
             }
         }
 
+        // Track daily spending
+        switch (parsed.direction()) {
+            case DEBIT -> current = tracker.deduct(parsed.amount());
+            case CREDIT -> current = tracker.add(parsed.amount());
+            default -> current = tracker.getCurrentAmount();
+        }
+
+        telegramService.notifyTransaction(parsed, newBalance);
+
         return ResponseEntity.ok(Map.of(
                 "status", "processed",
-                "type", parsed.type().name(),
+                "direction", parsed.direction().name(),
+                "method", parsed.paymentMethod().name(),
                 "amount", parsed.amount().toString(),
                 "balance", newBalance.toString(),
-                "tracker_current",current.toString()
+                "tracker_current", current.toString()
         ));
     }
 }
