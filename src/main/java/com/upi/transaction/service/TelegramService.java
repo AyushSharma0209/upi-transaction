@@ -29,20 +29,25 @@ public class TelegramService {
     }
 
     public void sendMessage(String text) {
-        webClient.get()
-                .uri("/bot{token}/sendMessage?chat_id={chatId}&text={text}",
-                        botToken, chatId, text)
+        webClient.post()
+                .uri("/bot" + botToken + "/sendMessage")
+                .bodyValue(java.util.Map.of(
+                        "chat_id", chatId,
+                        "text", text
+                ))
                 .retrieve()
                 .bodyToMono(String.class)
                 .doOnError(e -> System.err.println("Telegram send failed: " + e.getMessage()))
                 .subscribe();
     }
+
     public void notifyTally(String text) {
-        System.out.println("token"+trackToken);
-        System.out.println("token"+trackId);
-        webClient.get()
-                .uri("/bot{token}/sendMessage?chat_id={chatId}&text={text}",
-                        trackToken, trackId, text)
+        webClient.post()
+                .uri("/bot" + trackToken + "/sendMessage")
+                .bodyValue(java.util.Map.of(
+                        "chat_id", trackId,
+                        "text", text
+                ))
                 .retrieve()
                 .bodyToMono(String.class)
                 .doOnError(e -> System.err.println("Telegram send failed: " + e.getMessage()))
