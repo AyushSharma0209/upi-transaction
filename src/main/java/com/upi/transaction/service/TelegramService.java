@@ -30,7 +30,7 @@ public class TelegramService {
 
     public void sendMessage(String text) {
         webClient.get()
-                .uri("/bot{token}/sendMessage?chat_id={chatId}&text={text}&parse_mode=Markdown",
+                .uri("/bot{token}/sendMessage?chat_id={chatId}&text={text}",
                         botToken, chatId, text)
                 .retrieve()
                 .bodyToMono(String.class)
@@ -41,17 +41,12 @@ public class TelegramService {
         System.out.println("token"+trackToken);
         System.out.println("token"+trackId);
         webClient.get()
-                .uri("/bot{token}/sendMessage?chat_id={chatId}&text={text}&parse_mode=Markdown",
+                .uri("/bot{token}/sendMessage?chat_id={chatId}&text={text}",
                         trackToken, trackId, text)
                 .retrieve()
                 .bodyToMono(String.class)
                 .doOnError(e -> System.err.println("Telegram send failed: " + e.getMessage()))
                 .subscribe();
-    }
-
-    public void notifyBalance(BigDecimal balance){
-        String message = String.format("💰 Balance Updated!\n\nUpdated Balance: *₹%s*", balance);
-        sendMessage(message);
     }
 
     public void notifyTransaction(ParsedTransaction parsed, BigDecimal balance) {
@@ -61,12 +56,17 @@ public class TelegramService {
         String counterparty = parsed.counterparty() != null ? parsed.counterparty() : "Unknown";
 
         String message = String.format(
-                "%s *%s* ₹%s\n%s: `%s`\nMethod: %s\n\n💰 Balance: *₹%s*",
+                "%s %s ₹%s\n%s: %s\nMethod: %s\n\n💰 Balance: ₹%s",
                 emoji, action, parsed.amount(),
                 action.split(" ")[0], counterparty,
                 method, balance
         );
 
+        sendMessage(message);
+    }
+
+    public void notifyBalance(BigDecimal balance){
+        String message = String.format("💰 Balance Updated!\n\nUpdated Balance: ₹%s", balance);
         sendMessage(message);
     }
 }
