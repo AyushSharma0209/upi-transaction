@@ -7,7 +7,7 @@ import com.upi.transaction.service.SmsParserService;
 import com.upi.transaction.service.TelegramService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.util.Map;
