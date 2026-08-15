@@ -1,7 +1,10 @@
 package com.upi.transaction.controller;
 
 import com.upi.transaction.dto.ParsedTransaction;
+import com.upi.transaction.entity.Transaction;
+import com.upi.transaction.repository.TransactionRepository;
 import com.upi.transaction.service.BalanceService;
+import com.upi.transaction.service.CategorizationService;
 import com.upi.transaction.service.DailyAmountTracker;
 import com.upi.transaction.service.SmsParserService;
 import com.upi.transaction.service.TelegramService;
@@ -10,6 +13,9 @@ import org.springframework.web.bind.annotation.*;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 
 @RestController
@@ -20,14 +26,21 @@ public class SmsController {
     private final BalanceService balanceService;
     private final TelegramService telegramService;
     private final DailyAmountTracker tracker;
+    private final TransactionRepository transactionRepository;
+    private final CategorizationService categorizationService;
 
     public SmsController(SmsParserService smsParserService,
                          BalanceService balanceService,
-                         TelegramService telegramService, DailyAmountTracker tracker) {
+                         TelegramService telegramService,
+                         DailyAmountTracker tracker,
+                         TransactionRepository transactionRepository,
+                         CategorizationService categorizationService) {
         this.smsParserService = smsParserService;
         this.balanceService = balanceService;
         this.telegramService = telegramService;
         this.tracker = tracker;
+        this.transactionRepository = transactionRepository;
+        this.categorizationService = categorizationService;
     }
 
     @GetMapping("/test")
@@ -73,7 +86,6 @@ public class SmsController {
         BigDecimal newBalance;
         BigDecimal current;
 
-        // If SMS included balance, sync directly
         if (parsed.balanceAfter() != null) {
             newBalance = balanceService.syncBalance(parsed.balanceAfter());
         } else {
@@ -84,12 +96,28 @@ public class SmsController {
             }
         }
 
-        // Track daily spending
         switch (parsed.direction()) {
             case DEBIT -> current = tracker.deduct(parsed.amount());
             case CREDIT -> current = tracker.add(parsed.amount());
             default -> current = tracker.getCurrentAmount();
         }
+
+        // Resolve category via CategorizationService (Tier 1: mapping lookup, Tier 2: LLM fuzzy match)
+        CategorizationService.Result catResult = categorizationService.resolve(
+                parsed.counterparty(), parsed.amount(), parsed.paymentMethod().name());
+
+        // Persist the transaction
+        Transaction txn = new Transaction();
+        txn.setDate(parseDate(parsed.date()));
+        txn.setDirection(parsed.direction());
+        txn.setAmount(parsed.amount());
+        txn.setPaymentMethod(parsed.paymentMethod());
+        txn.setCounterpartyRaw(parsed.counterparty());
+        txn.setCounterparty(catResult.displayName());
+        txn.setCategory(catResult.category());
+        txn.setReference(parsed.referenceId());
+        txn.setBalance(newBalance);
+        transactionRepository.save(txn);
 
         telegramService.notifyTransaction(parsed, newBalance);
 
@@ -99,7 +127,30 @@ public class SmsController {
                 "method", parsed.paymentMethod().name(),
                 "amount", parsed.amount().toString(),
                 "balance", newBalance.toString(),
-                "tracker_current", current.toString()
+                "tracker_current", current.toString(),
+                "category", catResult.category(),
+                "categorySource", catResult.source(),
+                "needsApproval", catResult.needsApproval()
         ));
+    }
+
+    /**
+     * Bank SMS dates come as dd-MM-yy (regex path). LLM-parsed dates can vary.
+     * Falls back to today's date if parsing fails, rather than throwing.
+     */
+    private LocalDate parseDate(String dateStr) {
+        if (dateStr == null || dateStr.isBlank()) {
+            return LocalDate.now();
+        }
+        String[] patterns = {"dd-MM-yy", "dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yy", "dd/MM/yyyy"};
+        for (String pattern : patterns) {
+            try {
+                return LocalDate.parse(dateStr, DateTimeFormatter.ofPattern(pattern));
+            } catch (DateTimeParseException ignored) {
+                // try next pattern
+            }
+        }
+        System.err.println("Could not parse date: " + dateStr + " — defaulting to today");
+        return LocalDate.now();
     }
 }

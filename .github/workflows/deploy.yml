@@ -23,11 +23,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Java app image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile
           push: true
           tags: |
             ghcr.io/ayushsharma0209/upi-transaction:latest
             ghcr.io/ayushsharma0209/upi-transaction:${{ github.sha }}
+
+      - name: Build and push agent-bot image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: agent/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/ayushsharma0209/upi-agent-bot:latest
+            ghcr.io/ayushsharma0209/upi-agent-bot:${{ github.sha }}

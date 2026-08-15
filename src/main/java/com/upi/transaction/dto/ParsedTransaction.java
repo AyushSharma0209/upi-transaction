@@ -16,6 +16,8 @@ public record ParsedTransaction(
     }
 
     public enum PaymentMethod {
-        UPI, CARD, NET_BANKING, WALLET, NEFT, IMPS, NACH, OTHER
+        UPI, CARD, NET_BANKING, WALLET, NEFT, IMPS, NACH,
+        CHARGE, REFUND, INTEREST, CASH, UPI_MANDATE,
+        OTHER
     }
 }

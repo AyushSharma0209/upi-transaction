@@ -1,5 +1,3 @@
-// src/main/java/com/upi/transaction/config/AppConfig.java
-
 package com.upi.transaction.config;
 
 import lombok.Data;
@@ -12,29 +10,36 @@ import java.math.BigDecimal;
 @ConfigurationProperties(prefix = "app")
 public class AppConfig {
     private Gemini gemini = new Gemini();
+    private Claude claude = new Claude();
     private Balance balance = new Balance();
     private Telegram telegram = new Telegram();
     private Bank bank = new Bank();
     private Sms sms = new Sms();
 
-    // Getters and Setters
     public Balance getBalance() { return balance; }
     public void setBalance(Balance balance) { this.balance = balance; }
     public Telegram getTelegram() { return telegram; }
     public void setTelegram(Telegram telegram) { this.telegram = telegram; }
     public Bank getBank() { return bank; }
     public Gemini getGemini(){return gemini;}
+    public Claude getClaude(){return claude;}
+    public void setClaude(Claude claude){ this.claude = claude; }
     public void setBank(Bank bank) { this.bank = bank; }
     public Sms getSms() { return sms; }
     public void setSms(Sms sms) { this.sms = sms; }
-
-
 
     public static class Gemini {
         private String apiKey;
         public String getApiKey() { return apiKey; }
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
     }
+
+    public static class Claude {
+        private String apiKey;
+        public String getApiKey() { return apiKey; }
+        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+    }
+
     public static class Balance {
         private BigDecimal initial = BigDecimal.ZERO;
         public BigDecimal getInitial() { return initial; }
@@ -50,7 +55,6 @@ public class AppConfig {
         public String getTrackId(){return this.trackerId;}
         public void setTrackerToken(String token){this.trackerToken=token;}
         public void setTrackerId(String Id){this.trackerId=Id;}
-
         public String getBotToken() { return botToken; }
         public void setBotToken(String botToken) { this.botToken = botToken; }
         public String getChatId() { return chatId; }
