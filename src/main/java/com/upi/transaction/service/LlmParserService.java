@@ -16,12 +16,11 @@ import java.util.Map;
 public class LlmParserService {
 
     private final WebClient webClient;
-    private final String apiKey;
     private final ObjectMapper objectMapper;
 
     private static final String SYSTEM_PROMPT = """
             You are a financial SMS parser. Extract transaction details from Indian bank/payment SMS messages.
-            
+
             Return ONLY valid JSON with this exact structure:
             {
               "is_transaction": true/false,
@@ -33,7 +32,7 @@ public class LlmParserService {
               "date": "date found in SMS" or null,
               "reference_id": "transaction ref if present" or null
             }
-            
+
             Rules:
             - Extract the clean merchant name, not raw UPI IDs or folio numbers
             - If multiple amounts appear, the transaction amount is NOT the balance
@@ -45,11 +44,11 @@ public class LlmParserService {
             """;
 
     public LlmParserService(AppConfig appConfig) {
-        this.apiKey = appConfig.getGemini().getApiKey();
         this.objectMapper = new ObjectMapper();
         this.webClient = WebClient.builder()
-                .baseUrl("https://generativelanguage.googleapis.com")
-                .defaultHeader("X-goog-api-key", apiKey)
+                .baseUrl("https://api.anthropic.com")
+                .defaultHeader("x-api-key", appConfig.getClaude().getApiKey())
+                .defaultHeader("anthropic-version", "2023-06-01")
                 .defaultHeader("Content-Type", "application/json")
                 .build();
     }
@@ -57,7 +56,7 @@ public class LlmParserService {
     public ParsedTransaction parse(String smsBody) {
         try {
             String response = webClient.post()
-                    .uri("/v1beta/models/gemini-flash-latest:generateContent")
+                    .uri("/v1/messages")
                     .bodyValue(buildRequestBody(smsBody))
                     .retrieve()
                     .bodyToMono(String.class)
@@ -69,13 +68,14 @@ public class LlmParserService {
             return null;
         }
     }
+
     private Map<String, Object> buildRequestBody(String smsBody) {
         return Map.of(
-                "system_instruction", Map.of(
-                        "parts", new Object[]{Map.of("text", SYSTEM_PROMPT)}
-                ),
-                "contents", new Object[]{
-                        Map.of("parts", new Object[]{Map.of("text", smsBody)})
+                "model", "claude-haiku-4-5-20251001",
+                "max_tokens", 300,
+                "system", SYSTEM_PROMPT,
+                "messages", new Object[]{
+                        Map.of("role", "user", "content", smsBody)
                 }
         );
     }
@@ -83,13 +83,10 @@ public class LlmParserService {
     private ParsedTransaction mapResponse(String response) throws Exception {
         JsonNode root = objectMapper.readTree(response);
 
-        String text = root
-                .path("candidates").get(0)
-                .path("content")
-                .path("parts").get(0)
-                .path("text").asText();
+        // Claude Messages API: content[0].text
+        String text = root.path("content").get(0).path("text").asText();
 
-        // Strip markdown fences if Gemini wraps them
+        // Strip markdown fences if the model ever wraps them
         String cleaned = text.replaceAll("```json|```", "").trim();
         JsonNode parsed = objectMapper.readTree(cleaned);
 
