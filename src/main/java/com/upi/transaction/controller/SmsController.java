@@ -1,7 +1,9 @@
 package com.upi.transaction.controller;
 
 import com.upi.transaction.dto.ParsedTransaction;
+import com.upi.transaction.entity.PendingCategorization;
 import com.upi.transaction.entity.Transaction;
+import com.upi.transaction.repository.PendingCategorizationRepository;
 import com.upi.transaction.repository.TransactionRepository;
 import com.upi.transaction.service.BalanceService;
 import com.upi.transaction.service.CategorizationService;
@@ -21,7 +23,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api")
 public class SmsController {
-
+    private final PendingCategorizationRepository pendingRepo;
     private final SmsParserService smsParserService;
     private final BalanceService balanceService;
     private final TelegramService telegramService;
@@ -34,13 +36,14 @@ public class SmsController {
                          TelegramService telegramService,
                          DailyAmountTracker tracker,
                          TransactionRepository transactionRepository,
-                         CategorizationService categorizationService) {
+                         CategorizationService categorizationService,PendingCategorizationRepository pendingRepo) {
         this.smsParserService = smsParserService;
         this.balanceService = balanceService;
         this.telegramService = telegramService;
         this.tracker = tracker;
         this.transactionRepository = transactionRepository;
         this.categorizationService = categorizationService;
+        this.pendingRepo = pendingRepo;
     }
 
     @GetMapping("/test")
@@ -102,35 +105,56 @@ public class SmsController {
             default -> current = tracker.getCurrentAmount();
         }
 
-        // Resolve category via CategorizationService (Tier 1: mapping lookup, Tier 2: LLM fuzzy match)
+        // Resolve category via CategorizationService (Tier 1 mapping → Tier 2 fuzzy + LLM)
         CategorizationService.Result catResult = categorizationService.resolve(
                 parsed.counterparty(), parsed.amount(), parsed.paymentMethod().name());
 
-        // Persist the transaction
-        Transaction txn = new Transaction();
-        txn.setDate(parseDate(parsed.date()));
-        txn.setDirection(parsed.direction());
-        txn.setAmount(parsed.amount());
-        txn.setPaymentMethod(parsed.paymentMethod());
-        txn.setCounterpartyRaw(parsed.counterparty());
-        txn.setCounterparty(catResult.displayName());
-        txn.setCategory(catResult.category());
-        txn.setReference(parsed.referenceId());
-        txn.setBalance(newBalance);
-        transactionRepository.save(txn);
+// -------- Branch A: auto-resolved → write to ledger + notify normally --------
+        if (!catResult.needsApproval()) {
+            Transaction txn = new Transaction();
+            txn.setDate(parseDate(parsed.date()));
+            txn.setDirection(parsed.direction());
+            txn.setAmount(parsed.amount());
+            txn.setPaymentMethod(parsed.paymentMethod());
+            txn.setCounterpartyRaw(parsed.counterparty());
+            txn.setCounterparty(catResult.displayName());
+            txn.setCategory(catResult.category());
+            txn.setReference(parsed.referenceId());
+            txn.setBalance(newBalance);
+            transactionRepository.save(txn);
 
-        telegramService.notifyTransaction(parsed, newBalance);
+            telegramService.notifyTransaction(parsed, newBalance);
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "processed",
+                    "direction", parsed.direction().name(),
+                    "amount", parsed.amount().toString(),
+                    "balance", newBalance.toString(),
+                    "category", catResult.category(),
+                    "categorySource", catResult.source()
+            ));
+        }
+
+// -------- Branch B: uncertain → write to pending, ask via Telegram --------
+        PendingCategorization pending = new PendingCategorization();
+        pending.setRawCounterparty(parsed.counterparty());
+        pending.setDirection(parsed.direction());
+        pending.setAmount(parsed.amount());
+        pending.setPaymentMethod(parsed.paymentMethod());
+        pending.setReference(parsed.referenceId());
+        pending.setDate(parseDate(parsed.date()));
+        pending.setBalanceAfter(newBalance);
+        pending = pendingRepo.save(pending);   // save first to get the id
+
+        telegramService.notifyForApproval(pending);
+
 
         return ResponseEntity.ok(Map.of(
-                "status", "processed",
+                "status", "pending",
+                "pending_id", pending.getId().toString(),
                 "direction", parsed.direction().name(),
-                "method", parsed.paymentMethod().name(),
                 "amount", parsed.amount().toString(),
-                "balance", newBalance.toString(),
-                "tracker_current", current.toString(),
-                "category", catResult.category(),
-                "categorySource", catResult.source(),
-                "needsApproval", catResult.needsApproval()
+                "balance", newBalance.toString()
         ));
     }
 
