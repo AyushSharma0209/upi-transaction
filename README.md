@@ -1,131 +1,164 @@
-# UPI Transaction Tracker
+# AI Finance Controller
 
-An automated personal finance system that captures Google Pay UPI transactions from iPhone bank SMS notifications and delivers real-time Telegram alerts with running balance tracking.
+> Two-sided reconciliation controller for UPI-driven personal finance. Audits an SMS-ingested transaction ledger against the bank's authoritative monthly statements, using a six-tier cascading categorization pipeline with confidence-scored exception routing.
 
-## How It Works
+**Razorpay Buildathon · Track 04 · September 2026**
 
-```
-Google Pay Payment
-       ↓
-Kotak Bank sends SMS
-       ↓
-iOS Shortcuts detects SMS containing "Sent Rs" / "Received Rs"
-       ↓
-Shortcuts POSTs raw SMS text as JSON to Spring Boot server
-       ↓
-Server parses SMS → updates running balance → sends Telegram notification
-```
+---
 
-## What It Tracks
+## The result
 
-| SMS Type | Example | Server Action |
-|----------|---------|---------------|
-| UPI Debit | `Sent Rs.90.00 from Kotak Bank AC X8671 to gpay-xyz...` | Deducts from balance, sends Telegram alert |
-| UPI Credit | `Received Rs.60.00 in your Kotak Bank AC X8671 from...` | Adds to balance, sends Telegram alert |
-| Cash Deposit | `INR 50000.00 is credited...Combined Available Balance is INR 50025.97` | Syncs balance to actual bank value (no notification) |
+Measured on live production data. No cherry-picking. Full methodology and itemized exception tables in the live report.
 
-## Tech Stack
+|   |   |
+|---|---|
+| **98.5%** | Reconciliation match rate on 16 days of live SMS pipeline operation (Aug 16–31, 2026) |
+| **68.2%** | Autonomous categorization on 321 truly unseen counterparty rows (May + June + July 2026 statements) |
+| **1,229** | Real transactions in the production ledger (13 months of operation) |
+| **278** | Learned counterparty mappings accumulated across the pipeline's history |
+| **0** | Real SMS pipeline drops on the reconciliation window |
 
-- **Backend:** Java 17, Spring Boot 3.2
-- **SMS Capture:** iOS Shortcuts automation (webhook trigger on bank SMS)
-- **Notifications:** Telegram Bot API via Spring WebFlux WebClient
-- **Deployment:** Docker, GitHub Actions CI/CD, AWS EC2
-- **Configuration:** Externalized regex patterns and secrets via environment variables
+### → [View the live report](https://ayushsharma0209.github.io/upi-transaction/)
 
-## Project Structure
+Opens in your browser. All panels, all numbers, all exception tables. No cloning required.
 
-```
-src/main/java/com/upi/transaction/
-├── TransactionApplication.java        # Entry point
-├── config/
-│   └── AppConfig.java                 # Loads env vars (balance, telegram, SMS patterns)
-├── controller/
-│   └── SmsController.java             # POST /api/sms endpoint
-├── dto/
-│   └── ParsedTransaction.java         # Parsed SMS data record
-└── service/
-    ├── SmsParserService.java           # Regex-based SMS parser (3 formats)
-    ├── BalanceService.java             # In-memory running balance
-    └── TelegramService.java           # Sends formatted Telegram messages
-```
+### Video walkthrough
 
-## Setup
+*5-minute pitch — link posted here on Sep 4.*
 
-### 1. Create a Telegram Bot
+---
 
-1. Open Telegram, search for **@BotFather**
-2. Send `/newbot`, follow the prompts
-3. Copy the **bot token**
-4. Message your bot, then visit `https://api.telegram.org/bot<TOKEN>/getUpdates` to find your **chat ID**
+## What this does
 
-### 2. Configure Environment Variables
+Bank transactions arrive as SMS on my phone. iPhone Shortcuts forward each one to a Spring Boot backend on EC2, which parses it (regex + Gemini fallback for non-standard formats), updates a running balance, categorizes it through a six-tier cascade, and persists it in PostgreSQL.
 
-Set these in your `docker-compose.yml` or CI/CD secrets:
+Every month, the bank generates a PDF statement — the authoritative source of truth. **The reconciliation controller compares that statement row-by-row against the SMS-derived ledger** using deterministic bucket matching on `(date, amount, direction, payment_method)`. Any mismatch is emitted as a scored exception with a reason code.
 
-| Variable | Description |
-|----------|-------------|
-| `INITIAL_BALANCE` | Your current bank balance at time of deployment |
-| `TELEGRAM_BOT_TOKEN` | Bot token from BotFather |
-| `TELEGRAM_CHAT_ID` | Your Telegram chat ID |
+The goal, in Track 04's language: *"throughput plus measured accuracy plus an honest exception list."*
 
-### 3. Deploy
+---
+
+## Architecture
+
+![Architecture](docs/architecture-v2.png)
+
+**Ingestion:** iPhone Shortcuts → Spring Boot webhook → SMS parser (regex + Gemini fallback) → Balance service → Categorization cascade → PostgreSQL.
+
+**Categorization cascade (six tiers, progressive cost):**
+1. Exact match on raw counterparty ID (in-memory + DB lookup, ~9 ms)
+2. Normalize (strip domain, digits, punctuation → uppercase)
+3. Merchant allowlist (30-entry hardcoded map for global brands)
+4. Jaro-Winkler top-N pre-filter over learned mappings
+5. Claude Haiku picks from top-N or infers from name (~1090 ms)
+6. Telegram HITL for uncertain cases (< 0.85 confidence) — user confirms in one tap, mapping learned permanently
+
+**Reconciliation:** Bank statement PDF → `pdfplumber` parser → deterministic bucket matcher → exception classifier → HTML report generator.
+
+**Query surface:** Claude Sonnet ReAct agent with SQL tools, exposed via a Telegram bot. Ask *"how much did I spend on food in March?"* in natural language.
+
+Everything runs as Docker containers on a single AWS EC2 instance. CI via GitHub Actions builds and pushes images to GHCR; Watchtower auto-deploys.
+
+---
+
+## The measurement panels
+
+| Panel | What it measures | Data source |
+|---|---|---|
+| **A1** | Pipeline throughput and mapping-source distribution across all-time production data | Live PostgreSQL query on `transactions` + `counterparty_mappings` |
+| **A2** | Categorization tier distribution on truly unseen bank statement rows | `POST /api/eval/categorize` batch run on May + June + July 2026 rows |
+| **B** | Statement ↔ ledger match rate with itemized exception list | Deterministic bucket matcher on Aug 16–31, 2026 window |
+
+Every panel populated from real production data. The [live report](https://ayushsharma0209.github.io/upi-transaction/) shows all three side-by-side with counts, percentages, and exception tables.
+
+---
+
+## The exception taxonomy
+
+The reconciliation controller emits every unmatched row with a reason code:
+
+| Code | Meaning |
+|---|---|
+| `MATCHED` | Same date, amount, direction, and payment method on both sides — deterministic pair |
+| `STATEMENT_ONLY` | Bank has it, ledger doesn't — SMS pipeline drop, pre-go-live gap, or coverage boundary |
+| `LEDGER_ONLY` | Ledger has it, bank doesn't — usually wallet-internal operations (e.g., Zomato refund + re-debit that never touch the bank) |
+
+On the Aug 16–31 window: **67 MATCHED, 1 STATEMENT_ONLY** (pre-go-live boundary — SMS pipeline was deployed midway through Aug 16, so the earliest transaction that day predates ingestion), **2 LEDGER_ONLY** (Zomato wallet-internal ops that don't hit the bank statement).
+
+Full itemized table in the [live report](https://ayushsharma0209.github.io/upi-transaction/).
+
+---
+
+## What's honest and what isn't
+
+- **All quoted numbers are computed from real production data.** No cherry-picking, no synthetic amplification, no ex-post filtering.
+- **Counterparty names** in exception tables are redacted for private individuals (family, friends). Public brand names (Zomato, Amazon, Netflix, Apple, IRCTC, etc.) are shown as-is.
+- **The reconciliation window is 16 days** because the live SMS pipeline was deployed on Aug 16, 2026. Bank statement data before that date has no corresponding ledger to compare against — this coverage gap is a deliberate scope boundary, not a hidden limitation.
+- **The 1 `STATEMENT_ONLY` exception** on Aug 16 is a pre-go-live boundary artifact (a transaction that occurred before the SMS pipeline was deployed that day), correctly flagged by the controller — not a pipeline defect.
+- **Panel A2 numbers are one-shot.** Re-running the same evaluation against the same data would inflate the MAPPED tier count because the pipeline learns during each run (Tier 5 LLM ≥0.85 hits auto-save a mapping). The 68.2% autonomous number represents a first-encounter measurement.
+- **Two Aug 23 NACH transactions** in the ledger are manually backfilled from the bank statement — the Gemini SMS parser was in scheduled downtime that day. Backfill is source-tagged and disclosed in the report.
+
+---
+
+## Reproducibility
+
+The [live report](https://ayushsharma0209.github.io/upi-transaction/) is the primary artifact for evaluation — everything is visible in-browser.
+
+For deep verification, the reconciliation pipeline runs against synthetic sample data:
 
 ```bash
-docker compose up -d --build
+git clone https://github.com/AyushSharma0209/upi-transaction.git
+cd upi-transaction
+make demo   # spins Postgres + backend + reconciliation runner
 ```
 
-### 4. iOS Shortcuts Setup
+Individual scripts in `reconciliation/` also runnable standalone against your own Kotak-format PDFs — see [reconciliation/README.md](reconciliation/README.md).
 
-Create SMS automations in the iPhone Shortcuts app:
+---
 
-**Trigger:**
-- Automation → Message
-- Sender: Any Sender
-- Message Contains: `Sent Rs` (create a second one for `Received Rs`, third for `Combined Available Balance`)
-- Run Immediately: ✓
+## Tech stack
 
-**Action:**
-- Get Contents of URL → `http://your-server-ip:8080/api/sms`
-- Method: POST
-- Header: `Content-Type: application/json`
-- Request Body: JSON → key `smsBody`, value: Shortcut Input
+- **Backend:** Java 17, Spring Boot, WebFlux
+- **Ledger:** PostgreSQL 16
+- **Ingestion:** iPhone Shortcuts (SMS forwarder), Kotak Mahindra Bank SMS
+- **LLMs:** Claude Haiku 4.5 (categorization), Claude Sonnet (conversational agent), Google Gemini (SMS parse fallback)
+- **Reconciliation:** Python 3.10, `pdfplumber` (PDF parsing), `psycopg2` (Postgres)
+- **Infra:** Docker Compose, AWS EC2, GitHub Container Registry, Watchtower auto-deploy, GitHub Actions CI
+- **Query surface:** Claude Sonnet ReAct agent · Telegram Bot API
 
-## CI/CD
+---
 
-The project uses GitHub Actions for continuous deployment. On push to `main`:
-
-1. GitHub Actions builds the Docker image
-2. Pushes to the EC2 instance
-3. Restarts the container with updated config
-
-To correct balance drift, update `INITIAL_BALANCE` in the pipeline config and redeploy.
-
-## API
+## Repo layout
 
 ```
-POST /api/sms
+upi-transaction/
+├── src/                          Java Spring Boot backend
+│   └── main/java/com/upi/transaction/
+│       ├── controller/           SmsController, PendingController, EvalController
+│       └── service/              CategorizationService (six-tier cascade)
+├── reconciliation/               Python — parser + matcher + report
+│   ├── parse_unified.py          PDF → CSV (handles OLD + NEW Kotak formats)
+│   ├── matcher.py                Deterministic bucket matcher
+│   ├── run_reconciliation.py     CLI entry
+│   └── generate_report.py        HTML report generator
+├── agent.py                      Sonnet ReAct agent (SQL tools)
+├── agent_bot.py                  Telegram bot wrapper
+├── docs/
+│   ├── index.html                Live report (GitHub Pages source)
+│   └── architecture-v2.png       Architecture diagram
+├── data/                         Synthetic sample data for `make demo`
+├── docker-compose.yml
+├── Makefile
+└── README.md
 ```
 
-Request:
-```json
-{
-  "smsBody": "Sent Rs.90.00 from Kotak Bank AC X8671 to gpay-11256398113;okbizaxis on 11-12-25.UPI Ref 115487570744. Not you, https://kotak.com/KBANKT/Fraud"
-}
-```
+---
 
-Response:
-```json
-{
-  "status": "processed",
-  "type": "UPI_SENT",
-  "amount": "90.00",
-  "balance": "49910.00"
-}
-```
+## Contact
 
-## Design Decisions
+**Ayush Sharma** · [ayush.for.work3886@gmail.com](mailto:ayush.for.work38863886@gmail.com) · [github.com/AyushSharma0209](https://github.com/AyushSharma0209)
 
-- **No database** — the only state is a single balance number held in memory. A database would be overkill for tracking one value.
-- **Externalized regex patterns** — Kotak Bank could change their SMS format anytime. Patterns live in `application.properties`, loaded via `@ConfigurationProperties`. Format change = config update, not a code change.
-- **Cash deposit SMS syncs balance** — these messages include the actual bank balance (`Combined Available Balance is INR ...`), so the server uses this to correct any drift rather than just adding the deposit amount.
-- **Multi-stage Docker build** — build stage uses full Maven image, runtime uses lightweight JRE Alpine. Keeps the final image small.
+The production system runs on my personal EC2 instance and processes my own UPI transactions in real time. This buildathon submission wraps the same reconciliation loop in a reproducible package for evaluation.
+
+---
+
+*Built for Razorpay Buildathon 2026 · Track 04 — AI Finance Controller.*
