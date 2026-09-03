@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI Finance Controller — Reconciliation Report</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --border: #262b36;
+    --text: #e6e8ee; --muted: #8b93a7; --accent: #3ee08c; --warn: #ffb547; --danger: #ff6b6b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Cascadia Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 40px 20px; background: var(--bg); color: var(--text);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+            padding: 24px; margin-bottom: 20px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em;
+               color: var(--muted); margin: 0 0 16px; font-weight: 600; }
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+           padding: 20px; }
+  .stat .num { font: 700 32px/1 var(--mono); color: var(--accent); letter-spacing: -0.02em; }
+  .stat .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase;
+                letter-spacing: 0.08em; margin-top: 6px; }
+  .stat.warn .num { color: var(--warn); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); text-transform: uppercase; font-size: 11px;
+        letter-spacing: 0.08em; font-weight: 600; }
+  td.num { font-family: var(--mono); text-align: right; }
+  .bar { display: flex; height: 32px; border-radius: 6px; overflow: hidden; margin: 12px 0 8px; }
+  .bar > div { display: flex; align-items: center; justify-content: center;
+                font: 600 12px var(--mono); color: #000; }
+  .bar .mapped { background: #3ee08c; }
+  .bar .merchant { background: #6bcbf5; }
+  .bar .llm { background: #b28fff; }
+  .bar .pending { background: #ffb547; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px;
+                          border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .lg-mapped::before { background: #3ee08c; }
+  .lg-merchant::before { background: #6bcbf5; }
+  .lg-llm::before { background: #b28fff; }
+  .lg-pending::before { background: #ffb547; }
+  .note { color: var(--muted); font-size: 13px; margin-top: 16px; padding: 12px 16px;
+           background: rgba(255,255,255,0.03); border-left: 3px solid var(--accent); border-radius: 4px; }
+  .quote { font-size: 15px; line-height: 1.6; color: var(--text); padding: 16px 20px;
+            background: rgba(62,224,140,0.06); border-left: 3px solid var(--accent);
+            border-radius: 4px; margin: 16px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>AI Finance Controller — Reconciliation Report</h1>
+<div class="sub">Razorpay Buildathon · Track 04 · Generated Sep 03, 2026 · 12:56</div>
+
+<div class="stat-row">
+  <div class="stat">
+    <div class="num">98.5%</div>
+    <div class="lbl">Reconciliation match rate</div>
+  </div>
+  <div class="stat">
+    <div class="num">68.2%</div>
+    <div class="lbl">Autonomous categorization</div>
+  </div>
+  <div class="stat">
+    <div class="num">1,231</div>
+    <div class="lbl">Total transactions processed</div>
+  </div>
+  <div class="stat">
+    <div class="num">278</div>
+    <div class="lbl">Learned counterparty mappings</div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Panel A1 — Pipeline throughput (all-time production data)</h2>
+  <p>Live SMS-driven UPI ledger. Every incoming bank SMS parsed, categorized, and stored.</p>
+  <p><strong>1,231 transactions</strong> spanning 2025-07-01 → 2026-09-01.
+     <strong>278</strong> canonical counterparty mappings learned across the pipeline's operational history.</p>
+  <table>
+    <thead><tr><th>Mapping source (tier)</th><th class="num">count</th></tr></thead>
+    <tbody><tr><td>USER</td><td class='num'>199</td></tr><tr><td>LLM</td><td class='num'>70</td></tr><tr><td>MERCHANT</td><td class='num'>9</td></tr></tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Panel A2 — Categorization on truly unseen data</h2>
+  <p>321 bank statement rows from May + June + July 2026 (never previously touched
+     by the pipeline) run through the six-tier categorization cascade.
+     Measures pipeline effectiveness on novel counterparties.</p>
+  <div class="bar">
+    <div class="mapped" style="width: 52.3%">52.3%</div>
+    <div class="merchant" style="width: 1.9%">1.9%</div>
+    <div class="llm" style="width: 14.0%">14.0%</div>
+    <div class="pending" style="width: 31.8%">31.8%</div>
+  </div>
+  <div class="legend">
+    <span class="lg-mapped">MAPPED — Tier 1 exact match (168 rows · avg 9ms)</span>
+    <span class="lg-merchant">MERCHANT — Tier 3 allowlist (6 rows · avg 13ms)</span>
+    <span class="lg-llm">LLM — Tier 5 Haiku ≥0.85 (45 rows · avg 1090ms)</span>
+    <span class="lg-pending">PENDING — Tier 6 HITL required (102 rows)</span>
+  </div>
+  <div class="quote">
+    <strong>68.2% autonomous resolution.</strong>
+    31.8% correctly escalated to human review — genuine novel
+    counterparties where LLM confidence fell below the 0.85 threshold.
+    Every HITL resolution adds a permanent mapping, so tier-1 hit rate compounds over time.
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Panel B — Two-sided reconciliation (bank statement ↔ ledger)</h2>
+  <p>Deterministic bucket matching on <code>(date, amount, direction, payment_method)</code>.
+     Window: <strong>16–31 Aug 2026</strong> (16 days of live SMS pipeline operation).</p>
+
+  <div class="stat-row" style="grid-template-columns: repeat(5, 1fr); margin: 20px 0;">
+    <div class="stat"><div class="num">68</div><div class="lbl">Statement rows</div></div>
+    <div class="stat"><div class="num">69</div><div class="lbl">Ledger rows</div></div>
+    <div class="stat"><div class="num">67</div><div class="lbl">Matched</div></div>
+    <div class="stat warn"><div class="num">1</div><div class="lbl">Statement-only</div></div>
+    <div class="stat warn"><div class="num">2</div><div class="lbl">Ledger-only</div></div>
+  </div>
+
+  <div class="quote">
+    <strong>98.5% match rate.</strong>
+    The 1 <code>STATEMENT_ONLY</code> exception is a pre-go-live boundary artifact
+    (a transaction on 16 Aug before the SMS pipeline was deployed that day).
+    The 2 <code>LEDGER_ONLY</code> exceptions are Zomato wallet-internal operations
+    that legitimately don't appear on bank statements. <strong>Real SMS pipeline drop count: 0.</strong>
+  </div>
+
+  <h3 style='margin-top:24px;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);'>Statement-only exceptions (bank has, ledger missing)</h3>
+  <table><thead><tr><th>Date</th><th>Dir</th><th class='num'>Amount</th><th>Method</th><th>Counterparty</th></tr></thead><tbody><tr><td>2026-08-16</td><td>DEBIT</td><td class='num'>₹1.00</td><td>UPI</td><td>FAMILY_MEMBER_A</td></tr></tbody></table>
+
+  <h3 style='margin-top:24px;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);'>Ledger-only exceptions (ledger has, bank missing)</h3>
+  <table><thead><tr><th>Date</th><th>Dir</th><th class='num'>Amount</th><th>Method</th><th>Counterparty</th></tr></thead><tbody><tr><td>2026-08-28</td><td>CREDIT</td><td class='num'>₹304.28</td><td>WALLET</td><td>Zomato</td></tr><tr><td>2026-08-28</td><td>DEBIT</td><td class='num'>₹304.28</td><td>WALLET</td><td>Zomato</td></tr></tbody></table>
+</div>
+
+<div class="panel">
+  <h2>Architecture</h2>
+  <p>Bank SMS → iPhone Shortcut → Spring Boot (Gemini for non-standard parsing) →
+     Balance service → Categorization cascade (Tier 1..6) → PostgreSQL ledger.
+     Reconciliation controller consumes PDF statements + ledger via a bucket matcher,
+     emits scored exception list.</p>
+  <p style="color: var(--muted); font-size: 13px;">
+     Stack: Java Spring Boot · Python (pdfplumber, psycopg2) ·
+     PostgreSQL 16 · Docker Compose · Claude Haiku (categorization) ·
+     Claude Sonnet (conversational agent) · Gemini (SMS parse fallback) ·
+     AWS EC2 · GitHub Actions CI · Watchtower.
+  </p>
+</div>
+
+<div class="sub" style="margin-top: 32px; text-align: center;">
+  All numbers computed from live production data on Sep 03, 2026.
+  No synthetic values. No cherry-picking.
+</div>
+
+</div>
+</body>
+</html>
