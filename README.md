@@ -17,6 +17,7 @@ Measured on live production data. No cherry-picking. Full methodology and itemiz
 | **278** | Learned counterparty mappings accumulated across the pipeline's history |
 | **0** | Real SMS pipeline drops on the reconciliation window |
 
+![Live report — headline metrics](docs/report-screenshot.png)
 ### → [View the live report](https://ayushsharma0209.github.io/upi-transaction/)
 
 Opens in your browser. All panels, all numbers, all exception tables. No cloning required.
