@@ -1,6 +1,6 @@
 # AI Finance Controller
 
-> Two-sided reconciliation controller for UPI-driven personal finance. Audits an SMS-ingested transaction ledger against the bank's authoritative monthly statements, using a six-tier cascading categorization pipeline with confidence-scored exception routing.
+> Two-sided reconciliation controller for UPI-driven personal finance. Audits an SMS-ingested transaction ledger against the bank's authoritative monthly statements, using a multi-tier cascading categorization pipeline with confidence-scored exception routing.
 
 **Razorpay Buildathon · Track 04 · September 2026**
 
@@ -30,7 +30,7 @@ Opens in your browser. All panels, all numbers, all exception tables. No cloning
 
 ## What this does
 
-Bank transactions arrive as SMS on my phone. iPhone Shortcuts forward each one to a Spring Boot backend on EC2, which parses it (regex + Gemini fallback for non-standard formats), updates a running balance, categorizes it through a six-tier cascade, and persists it in PostgreSQL.
+Bank transactions arrive as SMS on my phone. iPhone Shortcuts forward each one to a Spring Boot backend on EC2, which parses it (regex + Gemini fallback for non-standard formats), updates a running balance, categorizes it through a multi-tier cascade, and persists it in PostgreSQL.
 
 Every month, the bank generates a PDF statement — the authoritative source of truth. **The reconciliation controller compares that statement row-by-row against the SMS-derived ledger** using deterministic bucket matching on `(date, amount, direction, payment_method)`. Any mismatch is emitted as a scored exception with a reason code.
 
@@ -44,13 +44,12 @@ The goal, in Track 04's language: *"throughput plus measured accuracy plus an ho
 
 **Ingestion:** iPhone Shortcuts → Spring Boot webhook → SMS parser (regex + Gemini fallback) → Balance service → Categorization cascade → PostgreSQL.
 
-**Categorization cascade (six tiers, progressive cost):**
+**Categorization cascade (multi-tier, progressive cost):**
 1. Exact match on raw counterparty ID (in-memory + DB lookup, ~9 ms)
 2. Normalize (strip domain, digits, punctuation → uppercase)
 3. Merchant allowlist (30-entry hardcoded map for global brands)
-4. Jaro-Winkler top-N pre-filter over learned mappings
-5. Claude Haiku picks from top-N or infers from name (~1090 ms)
-6. Telegram HITL for uncertain cases (< 0.85 confidence) — user confirms in one tap, mapping learned permanently
+4. Claude Haiku picks from top-N or infers from name (~1090 ms)
+5. Telegram HITL for uncertain cases (< 0.85 confidence) — user confirms in one tap, mapping learned permanently
 
 **Reconciliation:** Bank statement PDF → `pdfplumber` parser → deterministic bucket matcher → exception classifier → HTML report generator.
 
@@ -62,11 +61,11 @@ Everything runs as Docker containers on a single AWS EC2 instance. CI via GitHub
 
 ## The measurement panels
 
-| Panel | What it measures | Data source |
-|---|---|---|
+| Panel | What it measures                                                                    | Data source |
+|---|-------------------------------------------------------------------------------------|---|
 | **A1** | Pipeline throughput and mapping-source distribution across all-time production data | Live PostgreSQL query on `transactions` + `counterparty_mappings` |
-| **A2** | Categorization tier distribution on truly unseen bank statement rows | `POST /api/eval/categorize` batch run on May + June + July 2026 rows |
-| **B** | Statement ↔ ledger match rate with itemized exception list | Deterministic bucket matcher on Aug 16–31, 2026 window |
+| **A2** | Categorization multi-tier distribution on truly unseen bank statement rows          | `POST /api/eval/categorize` batch run on May + June + July 2026 rows |
+| **B** | Statement ↔ ledger match rate with itemized exception list                          | Deterministic bucket matcher on Aug 16–31, 2026 window |
 
 Every panel populated from real production data. The [live report](https://ayushsharma0209.github.io/upi-transaction/) shows all three side-by-side with counts, percentages, and exception tables.
 
@@ -94,9 +93,7 @@ Full itemized table in the [live report](https://ayushsharma0209.github.io/upi-t
 - **Counterparty names** in exception tables are redacted for private individuals (family, friends). Public brand names (Zomato, Amazon, Netflix, Apple, IRCTC, etc.) are shown as-is.
 - **The reconciliation window is 16 days** because the live SMS pipeline was deployed on Aug 16, 2026. Bank statement data before that date has no corresponding ledger to compare against — this coverage gap is a deliberate scope boundary, not a hidden limitation.
 - **The 1 `STATEMENT_ONLY` exception** on Aug 16 is a pre-go-live boundary artifact (a transaction that occurred before the SMS pipeline was deployed that day), correctly flagged by the controller — not a pipeline defect.
-- **Panel A2 numbers are one-shot.** Re-running the same evaluation against the same data would inflate the MAPPED tier count because the pipeline learns during each run (Tier 5 LLM ≥0.85 hits auto-save a mapping). The 68.2% autonomous number represents a first-encounter measurement.
-- **Two Aug 23 NACH transactions** in the ledger are manually backfilled from the bank statement — the Gemini SMS parser was in scheduled downtime that day. Backfill is source-tagged and disclosed in the report.
-
+- **Panel A2 numbers are one-shot.** Re-running the same evaluation against the same data would inflate the MAPPED multi-tier count because the pipeline learns during each run (Tier 5 LLM ≥0.85 hits auto-save a mapping). The 68.2% autonomous number represents a first-encounter measurement.
 ---
 
 ## Reproducibility
@@ -140,7 +137,7 @@ upi-transaction/
 ├── src/                          Java Spring Boot backend
 │   └── main/java/com/upi/transaction/
 │       ├── controller/           SmsController, PendingController, EvalController
-│       └── service/              CategorizationService (six-tier cascade)
+│       └── service/              CategorizationService (multi-tier cascade)
 ├── reconciliation/               Python — parser + matcher + report
 │   ├── parse_unified.py          PDF → CSV (handles OLD + NEW Kotak formats)
 │   ├── matcher.py                Deterministic bucket matcher
