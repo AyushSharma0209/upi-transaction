@@ -24,7 +24,7 @@ Opens in your browser. All panels, all numbers, all exception tables. No cloning
 
 ### Video walkthrough
 
-*5-minute pitch — link posted here on Sep 5.*
+**▶ [Watch the 5-minute pitch](https://youtu.be/_oUS-8cEp_k)**
 
 ---
 
