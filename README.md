@@ -14,7 +14,6 @@ Measured on live production data. No cherry-picking. Full methodology and itemiz
 |---|---|
 | **98.5%** | Reconciliation match rate on 16 days of live SMS pipeline operation (Aug 16–31, 2026) |
 | **68.2%** | Autonomous categorization on 321 truly unseen counterparty rows (May + June + July 2026 statements) |
-| **1,229** | Real transactions in the production ledger (13 months of operation) |
 | **278** | Learned counterparty mappings accumulated across the pipeline's history |
 | **0** | Real SMS pipeline drops on the reconciliation window |
 
@@ -24,7 +23,7 @@ Opens in your browser. All panels, all numbers, all exception tables. No cloning
 
 ### Video walkthrough
 
-*5-minute pitch — link posted here on Sep 4.*
+*5-minute pitch — link posted here on Sep 5.*
 
 ---
 
@@ -40,7 +39,7 @@ The goal, in Track 04's language: *"throughput plus measured accuracy plus an ho
 
 ## Architecture
 
-![Architecture](docs/architecture-v2.png)
+![Architecture](docs/architecture.png)
 
 **Ingestion:** iPhone Shortcuts → Spring Boot webhook → SMS parser (regex + Gemini fallback) → Balance service → Categorization cascade → PostgreSQL.
 
@@ -103,13 +102,19 @@ Full itemized table in the [live report](https://ayushsharma0209.github.io/upi-t
 
 The [live report](https://ayushsharma0209.github.io/upi-transaction/) is the primary artifact for evaluation — everything is visible in-browser.
 
-For deep verification, the reconciliation pipeline runs against synthetic sample data:
+For deep verification, the reconciliation pipeline runs against synthetic sample data shipped in this repo:
 
 ```bash
 git clone https://github.com/AyushSharma0209/upi-transaction.git
-cd upi-transaction
-make demo   # spins Postgres + backend + reconciliation runner
+cd upi-transaction/reconciliation
+pip install -r requirements.txt
+python -c "from matcher import match; import csv, json; \
+  stmt = [dict(r, amount=float(r['amount'])) for r in csv.DictReader(open('sample_data/kotak_sample.csv'))]; \
+  ledger = [dict(r, amount=float(r['amount'])) for r in csv.DictReader(open('sample_data/ledger_sample.csv'))]; \
+  print(json.dumps(match(stmt, ledger)['stats'], indent=2))"
 ```
+
+Expected: `{ "matched": 13, "statement_only": 2, "ledger_only": 1, ... }`.
 
 Individual scripts in `reconciliation/` also runnable standalone against your own Kotak-format PDFs — see [reconciliation/README.md](reconciliation/README.md).
 
@@ -139,15 +144,17 @@ upi-transaction/
 │   ├── parse_unified.py          PDF → CSV (handles OLD + NEW Kotak formats)
 │   ├── matcher.py                Deterministic bucket matcher
 │   ├── run_reconciliation.py     CLI entry
-│   └── generate_report.py        HTML report generator
+│   ├── generate_report.py        HTML report generator
+│   ├── eval_categorization.py    Panel A2 unseen-data replay
+│   ├── sample_data/              Synthetic demo dataset (CSVs)
+│   ├── requirements.txt
+│   └── README.md
 ├── agent.py                      Sonnet ReAct agent (SQL tools)
 ├── agent_bot.py                  Telegram bot wrapper
 ├── docs/
 │   ├── index.html                Live report (GitHub Pages source)
-│   └── architecture-v2.png       Architecture diagram
-├── data/                         Synthetic sample data for `make demo`
-├── docker-compose.yml
-├── Makefile
+│   └── architecture.png          Architecture diagram
+├── LICENSE
 └── README.md
 ```
 
@@ -155,7 +162,7 @@ upi-transaction/
 
 ## Contact
 
-**Ayush Sharma** · [ayush.for.work3886@gmail.com](mailto:ayush.for.work38863886@gmail.com) · [github.com/AyushSharma0209](https://github.com/AyushSharma0209)
+**Ayush Sharma** · [ayush.for.work3886@gmail.com](mailto:ayush.for.work3886@gmail.com) · [github.com/AyushSharma0209](https://github.com/AyushSharma0209)
 
 The production system runs on my personal EC2 instance and processes my own UPI transactions in real time. This buildathon submission wraps the same reconciliation loop in a reproducible package for evaluation.
 
