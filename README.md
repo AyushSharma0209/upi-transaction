@@ -1,6 +1,6 @@
 # AI Finance Controller
 
-> Two-sided reconciliation controller for UPI-driven personal finance. Audits an SMS-ingested transaction ledger against the bank's authoritative monthly statements, using a multi-tier cascading categorization pipeline with confidence-scored exception routing.
+> Two-sided reconciliation controller for Bank-driven personal finance. Audits an SMS-ingested transaction ledger against the bank's authoritative monthly statements, using a multi-tier cascading categorization pipeline with confidence-scored exception routing.
 
 **Razorpay Buildathon · Track 04 · September 2026**
 
@@ -152,7 +152,6 @@ upi-transaction/
 ├── docs/
 │   ├── index.html                Live report (GitHub Pages source)
 │   └── architecture.png          Architecture diagram
-├── LICENSE
 └── README.md
 ```
 
@@ -162,7 +161,7 @@ upi-transaction/
 
 **Ayush Sharma** · [ayush.for.work3886@gmail.com](mailto:ayush.for.work3886@gmail.com) · [github.com/AyushSharma0209](https://github.com/AyushSharma0209)
 
-The production system runs on my personal EC2 instance and processes my own UPI transactions in real time. This buildathon submission wraps the same reconciliation loop in a reproducible package for evaluation.
+The production system runs on my personal EC2 instance and processes my own Bank transactions in real time. This buildathon submission wraps the same reconciliation loop in a reproducible package for evaluation.
 
 ---
 
